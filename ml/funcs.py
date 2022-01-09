@@ -8,6 +8,7 @@ from rl.memory import SequentialMemory
 from rl.policy import BoltzmannQPolicy
 
 
+
 def test_env_without_nn_random(env_name):
     env = gym.make(env_name)
 
