@@ -31,7 +31,6 @@ for episode in range(1, episodes + 1):
         x = tf.Variable([[obs.tolist()]])
         y = model(x)
         action = numpy.argmax(y.numpy())
-        print("out: {}. Action: {}".format(y.numpy(), action))
         obs, reward, done, info = env.step(action)
         episode_reward += reward
 
