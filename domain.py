@@ -132,7 +132,7 @@ class Snake:
     def get_head(self) -> Point:
         return copy.deepcopy(self._points[0])
 
-    def get_points(self) -> list:
+    def get_points(self) -> list[Point]:
         return self._points
 
     def __str__(self) -> str:
@@ -148,7 +148,7 @@ class Snake:
 
 class BlocksBuilder:
     @staticmethod
-    def create_rect(width: int, height: int) -> list:
+    def create_rect(width: int, height: int) -> list[Point]:
         x = 0
         blocks = []
         while x < width:
