@@ -7,9 +7,31 @@ from tensorflow.keras.optimizers import Adam
 from rl.memory import SequentialMemory
 from rl.policy import BoltzmannQPolicy
 
+from mlsnake.snakeenv import SnakeEnv
+
 
 def test_env_without_nn_random(env_name):
     env = gym.make(env_name)
+
+    episodes = 10
+    for episode in range(1, episodes + 1):
+        env.reset()
+        episode_reward = 0
+        done = False
+
+        while not done:
+            env.render()
+            action = env.action_space.sample()
+            obs, reward, done, info = env.step(action)
+            episode_reward += reward
+
+        print("Episode {}. Reward: {}".format(episode, episode_reward))
+
+    env.close()
+
+
+def test_snake_env_without_nn_random():
+    env = SnakeEnv()
 
     episodes = 10
     for episode in range(1, episodes + 1):
@@ -32,7 +54,7 @@ def create_model(input_cnt, output_cnt):
     model = Sequential()
     model.add(Input(shape=(1, input_cnt)))
     model.add(Flatten())
-    model.add(Dense(64, activation='relu'))
+    model.add(Dense(128, activation='relu'))
     model.add(Dense(128, activation='relu'))
     model.add(Dense(output_cnt, activation='linear'))
     return model

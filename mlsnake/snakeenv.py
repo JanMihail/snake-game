@@ -117,7 +117,7 @@ class SnakeEnv(Env):
         self.np_random = None
         self.seed()
 
-        self.observation_shape = (5,)
+        self.observation_shape = (12,)
         self.observation_space = spaces.Box(low=np.zeros(self.observation_shape, dtype=np.float32),
                                             high=np.ones(self.observation_shape, dtype=np.float32),
                                             dtype=np.float32)
@@ -131,21 +131,27 @@ class SnakeEnv(Env):
     # noinspection PyAttributeOutsideInit
     def step(self, action: int):
         done = False
-        reward = 1.0
         new_direction = self._action_map.get(action)
+        prev_head = self._snake.get_head()
 
         self._snake.set_direction(new_direction)
         self._snake.make_step()
 
         if self.__exist_colission_with_block() or self._snake.exist_circle_collision():
+            reward = -200.
             done = True
 
         elif self.__exist_colission_with_food():
             self._snake.feed()
             self._food = self.__create_food()
-            reward = 2.0
+            reward = 40.
+            self._score += 1
 
-        self._score += reward
+        elif self.__comes_to_food(prev_head, self._snake.get_head(), self._food):
+            reward = 1.
+
+        else:
+            reward = -1.
 
         return self._get_ob(), reward, done, {}
 
@@ -177,50 +183,41 @@ class SnakeEnv(Env):
     def _get_ob(self):
         head = self._snake.get_head()
 
-        head_up = None
-        head_right = None
-        head_down = None
-        head_left = None
-
         all_blocks = self._snake.get_points()[1:]
         all_blocks += self._blocks
 
+        block_up = 0.
+        block_right = 0.
+        block_down = 0.
+        block_left = 0.
+
         for block in all_blocks:
-            if head.get_x() == block.get_x():
-                # up
-                if head.get_y() - block.get_y() < 0:
-                    if head_up is None or head_up.get_y() - block.get_y() > 0:
-                        head_up = block
-                # down
-                else:
-                    if head_down is None or head_down.get_y() - block.get_y() < 0:
-                        head_down = block
-            elif head.get_y() == block.get_y():
-                # left
-                if head.get_x() - block.get_x() > 0:
-                    if head_left is None or head_left.get_x() - block.get_x() < 0:
-                        head_left = block
-                # right
-                else:
-                    if head_right is None or head_right.get_x() - block.get_x() > 0:
-                        head_right = block
+            if block_up < 0.01 and block.get_y() == head.get_y() + 1:
+                block_up = 1.
+            if block_right < 0.01 and block.get_x() == head.get_x() + 1:
+                block_right = 1.
+            if block_down < 0.01 and block.get_y() == head.get_y() - 1:
+                block_down = 1.
+            if block_left < 0.01 and block.get_x() == head.get_x() - 1:
+                block_left = 1.
 
-        if head_left is None:
-            head_left = Point(head.get_x(), head.get_y())
-        if head_right is None:
-            head_right = Point(head.get_x(), head.get_y())
-        if head_up is None:
-            head_up = Point(head.get_x(), head.get_y())
-        if head_down is None:
-            head_down = Point(head.get_x(), head.get_y())
+        food_up = 1. if self._food.get_y() > head.get_y() else 0.
+        food_right = 1. if self._food.get_x() > head.get_x() else 0.
+        food_down = 1. if self._food.get_y() < head.get_y() else 0.
+        food_left = 1. if self._food.get_x() < head.get_x() else 0.
 
-        up_dist = (head_up.get_y() - head.get_y()) / (self._height - 2)
-        down_dist = (head.get_y() - head_down.get_y()) / (self._height - 2)
-        right_dist = (head_right.get_x() - head.get_x()) / (self._width - 2)
-        left_dist = (head.get_x() - head_left.get_x()) / (self._width - 2)
+        dir_up = 1. if self._snake.get_direction() == Direction.UP else 0.
+        dir_right = 1. if self._snake.get_direction() == Direction.RIGHT else 0.
+        dir_down = 1. if self._snake.get_direction() == Direction.DOWN else 0.
+        dir_left = 1. if self._snake.get_direction() == Direction.LEFT else 0.
 
         return np.array(
-            [up_dist, right_dist, down_dist, left_dist, 0.], dtype=np.float32
+            [
+                food_up, food_right, food_down, food_left,
+                block_up, block_right, block_down, block_left,
+                dir_up, dir_right, dir_down, dir_left
+            ],
+            dtype=np.float32
         )
 
     def __exist_colission_with_block(self) -> bool:
@@ -241,3 +238,8 @@ class SnakeEnv(Env):
 
             if not self._snake.collision_with_point(food):
                 return food
+
+    def __comes_to_food(self, prev_head: Point, current_head: Point, food: Point):
+        prev_distance = abs(food.get_x() - prev_head.get_x()) + (food.get_y() - prev_head.get_y())
+        curr_distance = abs(food.get_x() - current_head.get_x()) + (food.get_y() - current_head.get_y())
+        return curr_distance < prev_distance

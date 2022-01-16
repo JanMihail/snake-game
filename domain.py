@@ -88,11 +88,11 @@ class Snake:
         # Deny change direction UP <-> DOWN и RIGHT <-> LEFT
         if self._last_step_direction.value + new_direction.value not in [3, 7]:
             self._direction = new_direction
-        else:
-            print(colored(
-                f"Incorrect direction. Last step: {self._last_step_direction}. New: {new_direction}",
-                "yellow"
-            ))
+        # else:
+        #     print(colored(
+        #         f"Incorrect direction. Last step: {self._last_step_direction}. New: {new_direction}",
+        #         "yellow"
+        #     ))
 
     def feed(self):
         self._foodCounter += 1
@@ -134,6 +134,9 @@ class Snake:
 
     def get_points(self) -> list[Point]:
         return self._points
+
+    def get_direction(self) -> Direction:
+        return self._direction
 
     def __str__(self) -> str:
         res = "Snake\n"
