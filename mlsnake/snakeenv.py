@@ -18,7 +18,7 @@ class Config:
 
 
 class GameBoard(tk.Canvas):
-    def __init__(self, blocks: list[Point]):
+    def __init__(self):
         super(GameBoard, self).__init__(background="#F7E697", width=Config.WIDTH, height=Config.HEIGHT)
 
         self._img_block = tk.PhotoImage(file="../resources/block.png")
@@ -26,15 +26,15 @@ class GameBoard(tk.Canvas):
         self._img_head = tk.PhotoImage(file="../resources/head.png")
         self._img_food = tk.PhotoImage(file="../resources/food.png")
 
-        self.__init_board(blocks)
-
-    def __init_board(self, blocks: list[Point]):
+    def redraw_blocks(self, blocks: list[Point]):
+        self.delete("block")
         for block in blocks:
             self.create_image(
                 self.__x_to_screen(block.get_x()),
                 self.__y_to_screen(block.get_y()),
                 image=self._img_block,
-                anchor='nw'
+                anchor='nw',
+                tag='block'
             )
         self.update()
 
@@ -89,10 +89,10 @@ class GameBoard(tk.Canvas):
 
 
 class SnakeViewer(tk.Tk):
-    def __init__(self, blocks: list[Point]):
+    def __init__(self):
         super().__init__()
 
-        self.gb = GameBoard(blocks)
+        self.gb = GameBoard()
         self.gb.pack()
 
         self.wm_title("Snake Super Game")
@@ -125,7 +125,6 @@ class SnakeEnv(Env):
 
         self._width = 20
         self._height = 20
-        self._blocks = BlocksBuilder.create_rect(self._width, self._height)
         self.reset()
 
     # noinspection PyAttributeOutsideInit
@@ -157,15 +156,36 @@ class SnakeEnv(Env):
 
     # noinspection PyAttributeOutsideInit
     def reset(self):
+        self._blocks = BlocksBuilder.create_rect(self._width, self._height)
+
+        x1 = self.np_random.randint(1, self._width / 2 - 2)
+        y1 = self.np_random.randint(1, self._height / 2 - 2)
+        x2 = self.np_random.randint(11, self._width - 3)
+        y2 = self.np_random.randint(11, self._height - 3)
+
+        self._blocks.append(Point(x1, y1))
+        self._blocks.append(Point(x1, y1 + 1))
+        self._blocks.append(Point(x1 + 1, y1))
+        self._blocks.append(Point(x1 + 1, y1 + 1))
+
+        self._blocks.append(Point(x2, y2))
+        self._blocks.append(Point(x2, y2 + 1))
+        self._blocks.append(Point(x2 + 1, y2))
+        self._blocks.append(Point(x2 + 1, y2 + 1))
+
         self._snake = Snake(10, 10, 3, Direction.UP)
         self._food = self.__create_food()
         self._score = 0
+
+        if self._viewer is not None:
+            self._viewer.gb.redraw_blocks(self._blocks)
 
         return self._get_ob()
 
     def render(self, mode="human"):
         if self._viewer is None:
-            self._viewer = SnakeViewer(self._blocks)
+            self._viewer = SnakeViewer()
+            self._viewer.gb.redraw_blocks(self._blocks)
 
         self._viewer.gb.redraw(
             self._food,
@@ -236,8 +256,14 @@ class SnakeEnv(Env):
             y = self.np_random.randint(1, self._height - 1)
             food = Point(x, y)
 
-            if not self._snake.collision_with_point(food):
+            if not self._snake.collision_with_point(food) and not self.__collision_point_with_blocks(food):
                 return food
+
+    def __collision_point_with_blocks(self, p: Point) -> bool:
+        for block in self._blocks:
+            if block == p:
+                return True
+        return False
 
     def __comes_to_food(self, prev_head: Point, current_head: Point, food: Point):
         prev_distance = abs(food.get_x() - prev_head.get_x()) + (food.get_y() - prev_head.get_y())
