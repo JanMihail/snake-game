@@ -138,13 +138,13 @@ class SnakeEnv(Env):
         self._snake.make_step()
 
         if self.__exist_colission_with_block() or self._snake.exist_circle_collision():
-            reward = -200.
+            reward = -100.
             done = True
 
         elif self.__exist_colission_with_food():
             self._snake.feed()
             self._food = self.__create_food()
-            reward = 40.
+            reward = 10.
             self._score += 1
 
         elif self.__comes_to_food(prev_head, self._snake.get_head(), self._food):
@@ -192,13 +192,13 @@ class SnakeEnv(Env):
         block_left = 0.
 
         for block in all_blocks:
-            if block_up < 0.01 and block.get_y() == head.get_y() + 1:
+            if block_up < 0.01 and block.get_x() == head.get_x() and block.get_y() == head.get_y() + 1:
                 block_up = 1.
-            if block_right < 0.01 and block.get_x() == head.get_x() + 1:
+            if block_right < 0.01 and block.get_y() == head.get_y() and block.get_x() == head.get_x() + 1:
                 block_right = 1.
-            if block_down < 0.01 and block.get_y() == head.get_y() - 1:
+            if block_down < 0.01 and block.get_x() == head.get_x() and block.get_y() == head.get_y() - 1:
                 block_down = 1.
-            if block_left < 0.01 and block.get_x() == head.get_x() - 1:
+            if block_left < 0.01 and block.get_y() == head.get_y() and block.get_x() == head.get_x() - 1:
                 block_left = 1.
 
         food_up = 1. if self._food.get_y() > head.get_y() else 0.

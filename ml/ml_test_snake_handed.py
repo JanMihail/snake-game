@@ -34,7 +34,6 @@ for episode in range(1, episodes + 1):
         episode_reward += reward
         time.sleep(0.01)
 
-    # time.sleep(1)
     env.render()
     print("Episode: {}. Reward: {}".format(episode, episode_reward))
     time.sleep(1)
