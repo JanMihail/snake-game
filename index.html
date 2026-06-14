@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Snake</title>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <style>
+        body { background-color: #1e1e1e; color: white; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        #score { font-size: 24px; margin-bottom: 10px; }
+        canvas { border: 2px solid #333; background-color: #1e1e1e; }
+        #status { color: #888; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="score">Счёт: 0</div>
+    <canvas id="gameCanvas" width="350" height="350"></canvas>
+    <div id="status">Загрузка ИИ-модели...</div>
+
+<script>
+const width = 10, height = 10, cellSize = 35;
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let snake = [], direction = 3, food = {r:0, c:0}, score = 0, done = false;
+let session = null;
+
+// Инициализация игры (аналог reset в Python)
+function resetGame() {
+    snake = [
+        {r: Math.floor(height/2), c: Math.floor(width/2)},
+        {r: Math.floor(height/2), c: Math.floor(width/2) + 1},
+        {r: Math.floor(height/2), c: Math.floor(width/2) + 2}
+    ];
+    direction = 3; // ВЛЕВО
+    score = 0;
+    done = false;
+    placeFood();
+}
+
+function placeFood() {
+    while (true) {
+        let r = Math.floor(Math.random() * height);
+        let c = Math.floor(Math.random() * width);
+        if (!snake.some(s => s.r === r && s.c === c)) {
+            food = {r, c};
+            break;
+        }
+    }
+}
+
+// Сбор признаков среды (Полная копия вашего _get_state на Python)
+function getState() {
+    const hr = snake[0].r;
+    const hc = snake[0].c;
+    const directions = [
+        [-1, 0], [-1, 1], [0, 1], [1, 1],
+        [1, 0], [1, -1], [0, -1], [-1, -1]
+    ];
+    let state = [];
+
+    for (let [dr, dc] of directions) {
+        let r = hr + dr, c = hc + dc;
+        let dist = 1.0, bodyDist = 0.0;
+
+        while (r >= 0 && r < height && c >= 0 && c < width) {
+            if (bodyDist === 0.0 && snake.some(s => s.r === r && s.c === c)) {
+                bodyDist = 1.0 / dist;
+            }
+            r += dr; c += dc; dist += 1.0;
+        }
+        let wallDist = 1.0 / dist;
+        state.push(wallDist, bodyDist);
+    }
+    state.push(food.r < hr ? 1.0 : 0.0);
+    state.push(food.r > hr ? 1.0 : 0.0);
+    state.push(food.c < hc ? 1.0 : 0.0);
+    state.push(food.c > hc ? 1.0 : 0.0);
+    return state;
+}
+
+// Один шаг игры (аналог step)
+function step(action) {
+    if (Math.abs(direction - action) !== 2) direction = action;
+    let hr = snake[0].r, hc = snake[0].c;
+
+    if (direction === 0) hr--;
+    else if (direction === 1) hc++;
+    else if (direction === 2) hr++;
+    else if (direction === 3) hc--;
+
+    if (hr < 0 || hr >= height || hc < 0 || hc >= width || snake.some(s => s.r === hr && s.c === hc)) {
+        done = true; return;
+    }
+
+    snake.unshift({r: hr, c: hc});
+    if (hr === food.r && hc === food.c) {
+        score++; document.getElementById('score').innerText = "Счёт: " + score;
+        placeFood();
+    } else {
+        snake.pop();
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Еда
+    ctx.fillStyle = '#FF5555';
+    ctx.beginPath();
+    ctx.arc(food.c * cellSize + cellSize/2, food.r * cellSize + cellSize/2, cellSize/2 - 4, 0, 2*Math.PI);
+    ctx.fill();
+    // Змейка
+    snake.forEach((segment, i) => {
+        ctx.fillStyle = i === 0 ? '#db7b04' : '#00AA44';
+        ctx.fillRect(segment.c * cellSize, segment.r * cellSize, cellSize, cellSize);
+        ctx.strokeStyle = '#1e1e1e';
+        ctx.strokeRect(segment.c * cellSize, segment.r * cellSize, cellSize, cellSize);
+    });
+}
+
+// Главный игровой цикл с вызовом нейросети
+async function gameLoop() {
+    if (done) {
+        // 1. Меняем статус на экране
+        document.getElementById('status').innerText = "Игра окончена! Перезапуск через 5 секунд...";
+
+        // 2. Включаем задержку на 5000 миллисекунд (5 секунд)
+        setTimeout(() => {
+            document.getElementById('status').innerText = "ИИ играет...";
+            resetGame();
+            gameLoop(); // Перезапускаем цикл после паузы
+        }, 5000);
+
+        return; // Выходим из текущего шага цикла, чтобы ИИ не делал ходов во время паузы
+    }
+
+    // 1. Получаем состояние среды
+    const state = getState();
+
+    // 2. Превращаем массив в Float32Tensor для ONNX
+    const inputTensor = new ort.Tensor('float32', Float32Array.from(state), [1, 20]);
+
+    // 3. Запускаем инференс модели
+    const feeds = { 'input': inputTensor };
+    const results = await session.run(feeds);
+    const output = results['output'].data;
+
+    // 4. Находим argmax
+    let action = 0, maxQ = output[0];
+    for(let i=1; i<4; i++) {
+        if(output[i] > maxQ) { maxQ = output[i]; action = i; }
+    }
+
+    // 5. Делаем шаг и обновляем экран
+    step(action);
+    draw();
+
+    setTimeout(gameLoop, 60); // Скорость игры (60мс на шаг)
+}
+
+// Загрузка модели при старте страницы
+async function init() {
+    try {
+        session = await ort.InferenceSession.create('./snake_model.onnx');
+        document.getElementById('status').innerText = "Модель загружена! ИИ играет...";
+        resetGame();
+        gameLoop();
+    } catch (e) {
+        document.getElementById('status').innerText = "Ошибка загрузки модели: " + e.message;
+        console.error(e);
+    }
+}
+init();
+</script>
+</body>
+</html>python -m http.server 8000
