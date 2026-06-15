@@ -122,14 +122,14 @@ function draw() {
 async function gameLoop() {
     if (done) {
         // 1. Меняем статус на экране
-        document.getElementById('status').innerText = "Игра окончена! Перезапуск через 5 секунд...";
+        document.getElementById('status').innerText = "Игра окончена! Перезапуск через 3 секунды...";
 
-        // 2. Включаем задержку на 5000 миллисекунд (5 секунд)
+        // 2. Включаем задержку на 3000 миллисекунд (3 секунды)
         setTimeout(() => {
             document.getElementById('status').innerText = "ИИ играет...";
             resetGame();
             gameLoop(); // Перезапускаем цикл после паузы
-        }, 5000);
+        }, 3000);
 
         return; // Выходим из текущего шага цикла, чтобы ИИ не делал ходов во время паузы
     }
@@ -173,4 +173,4 @@ async function init() {
 init();
 </script>
 </body>
-</html>python -m http.server 8000
+</html>
