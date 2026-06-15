@@ -7,18 +7,18 @@
     <style>
         body { background-color: #1e1e1e; color: white; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
         #score { font-size: 24px; margin-bottom: 10px; }
-        canvas { border: 2px solid #333; background-color: #1e1e1e; }
+        canvas { border: 2px solid #555; background-color: #1e1e1e; }
         #status { color: #888; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <div id="score">Счёт: 0</div>
-    <canvas id="gameCanvas" width="350" height="350"></canvas>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
     <div id="status">Загрузка ИИ-модели...</div>
 
 <script>
-const width = 10, height = 10, cellSize = 35;
+const width = 10, height = 10, cellSize = 40;
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
